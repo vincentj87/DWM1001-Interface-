@@ -1,3 +1,5 @@
+# This code is used to set the position of a UWB anchor device (DWM1001C) via Bluetooth using the Bleak library.
+
 import asyncio
 import struct
 from bleak import BleakClient

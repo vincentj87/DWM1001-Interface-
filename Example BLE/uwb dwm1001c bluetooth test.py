@@ -1,3 +1,5 @@
+# this code is used to read UWB position data from a DWM1001C device via Bluetooth and visualize the X-Y coordinates in real-time using matplotlib
+
 import asyncio
 import struct
 import threading
