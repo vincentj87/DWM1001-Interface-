@@ -1,3 +1,5 @@
+# This code is used to read and write the PAN ID (Network ID) of a Bluetooth device using the Bleak library.
+
 import asyncio
 import struct
 from bleak import BleakClient
