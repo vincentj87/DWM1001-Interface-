@@ -4,7 +4,7 @@ import asyncio
 import struct
 from bleak import BleakClient
 
-ADDRESS = "DF:40:6F:1F:D7:11"
+ADDRESS = "DD:73:23:8B:A7:0E"
 NETWORK_ID_UUID = "80f9d8bc-3bff-45bb-a181-2d6a37991208"
 
 async def main():

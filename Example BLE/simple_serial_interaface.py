@@ -1,6 +1,3 @@
-#this code is used to communicate with a DWM1001C device over a serial interface, allowing sending commands and receiving responses via UART
-
-
 import serial
 import time
 import threading
@@ -8,22 +5,40 @@ import glob
 
 BAUD = 115200
 
+###############################
+#   SERIAL HELPER FUNCTIONS   #
+###############################
+
 def find_port():
-    """Return first /dev/ttyUSB* port or None."""
     ports = glob.glob("/dev/ttyUSB*")
     return ports[0] if ports else None
 
 def wake_shell(ser):
-    """Send ENTER twice with delay to wake DWM1001 shell."""
+    """Wake DWM1001 shell by sending two enters."""
+    time.sleep(0.2)
     ser.write(b"\r")
-    time.sleep(0.3)
+    time.sleep(0.2)
     ser.write(b"\r")
-    time.sleep(0.3)
+    time.sleep(0.2)
+
+def write_slow(ser, text, delay=0.05):
+    """apg
+    Send a command slowly so DWM1001 firmware can parse it.
+    Recommended delay between characters: 3–5 ms
+    """
+    for ch in text:
+        ser.write(ch.encode())
+        time.sleep(delay)
+
+    ser.write(b"\r")   # send ENTER
+    time.sleep(0.01)
+
+###############################
+#     UART READER THREAD      #
+###############################
 
 def uart_reader():
-    """Thread that continuously reads UART and handles disconnects."""
     global ser
-
     while True:
         try:
             if ser and ser.in_waiting > 0:
@@ -37,13 +52,8 @@ def uart_reader():
             ser = None
             reconnect_serial()
 
-        except Exception:
-            pass
-
 def reconnect_serial():
-    """Wait until the USB device reappears and reopen serial port."""
     global ser
-
     while ser is None:
         port = find_port()
         if port:
@@ -51,11 +61,15 @@ def reconnect_serial():
                 print(f"[+] Reconnecting to {port}...")
                 ser = serial.Serial(port, BAUD, timeout=0.1)
                 wake_shell(ser)
-                print("[+] Reconnected successfully!")
+                print("[+] Reconnected!")
                 return
-            except Exception:
+            except:
                 pass
         time.sleep(1)
+
+###############################
+#            MAIN             #
+###############################
 
 def main():
     global ser
@@ -69,38 +83,39 @@ def main():
                 ser = serial.Serial(port, BAUD, timeout=0.1)
                 wake_shell(ser)
                 print(f"[+] Connected to {port}")
-            except Exception:
+            except:
                 ser = None
         else:
-            print("[-] No device found. Waiting...")
+            print("[-] No device found...")
         time.sleep(1)
 
-    # Start UART reader thread
+    # Start reader thread
     threading.Thread(target=uart_reader, daemon=True).start()
 
-    # User command loop
+    # Command loop
+    print("[+] Ready. Type commands (e.g., aps 100 200 300). Type exit to quit.")
     try:
         while True:
-            cmd = input("> ")
+            cmd = input("> ").strip()
             if cmd.lower() == "exit":
                 break
+            if cmd == "":
+                continue
 
             if ser:
                 try:
-                    ser.write((cmd + "\r").encode())
+                    write_slow(ser, cmd)   # <----- FIXED HERE
                 except serial.SerialException:
                     print("[-] USB disconnected while sending!")
                     ser = None
                     reconnect_serial()
             else:
-                print("[-] USB disconnected — waiting for reconnection...")
-
+                print("[-] USB disconnected — waiting...")
     except KeyboardInterrupt:
-        print("\n[+] Stopped by user.")
+        print("\n[+] Exiting...")
 
     if ser:
         ser.close()
-
     print("[+] Program ended.")
 
 if __name__ == "__main__":

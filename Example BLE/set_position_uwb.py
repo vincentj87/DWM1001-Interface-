@@ -4,7 +4,7 @@ import asyncio
 import struct
 from bleak import BleakClient
 
-ADDRESS = "DF:40:6F:1F:D7:11"
+ADDRESS = "CE:D8:74:92:70:83"
 position_anchor_set_uuid = "f0f26c9b-2c8c-49ac-ab60-fe03def1b40c"   # write-only characteristic
 
 async def main():
@@ -16,9 +16,9 @@ async def main():
         print("Connected to device")
 
         # Data posisi (X,Y,Z,Q)
-        x = 1000   # mm
-        y = 1000   # mm
-        z = 0      # mm
+        x = 1001   # mm
+        y = 1002   # mm
+        z = 50   # mm
         q = 100    # quality
 
         # pack ke 13 bytes
