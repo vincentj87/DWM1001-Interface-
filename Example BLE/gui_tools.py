@@ -3,6 +3,7 @@
 DWM1001C Manager — Combined GUI for UWB Operations (Connect, Config, Location)
 Fix: RPos button now uses the Live Location UUID (003bbdf2...) and 14-byte parsing
      from the user's successful 'get_anchor_pos.py' script.
+Includes: PAN ID read/write functionality integrated from read_write_pansid.py
 """
 
 import asyncio
@@ -28,7 +29,7 @@ DEVICES = [
 
 # BLE GATT UUIDs
 OP_MODE_UUID = "3f0afd88-7770-46b0-b5e7-9fc099598964"
-NETWORK_ID_UUID = "80f9d8bc-3bff-45bb-a181-2d6a37991208"
+NETWORK_ID_UUID = "80f9d8bc-3bff-45bb-a181-2d6a37991208"  # PAN ID Characteristic
 DISCONNECT_UUID = "ed83b848-da03-4a0a-a2dc-8b401080e473"
 
 # Core difference here:
@@ -175,29 +176,47 @@ class DeviceHandler:
         # Read position using the characteristic the user's script successfully used (LOCATION_UUID)
         await self._read_static_pos()
 
-    # --- Read/Write PAN ID ---
+    # --- Read/Write PAN ID (Integrated from read_write_pansid.py) ---
     async def _read_pan(self):
+        """Read PAN ID from device and update UI."""
         if not self.client or not self.client.is_connected: return
         try:
+            # Read 2-byte PAN ID (little endian)
             data = await self.client.read_gatt_char(NETWORK_ID_UUID)
+            
+            print(f"Raw PAN ID bytes: {data.hex()}")
+            
             if len(data) >= 2:
-                pan = struct.unpack("<H", data[:2])[0]
-                self.ui["pan"].config(text=f"0x{pan:04X}")
-                self.ui["log"].config(text=f"Read PAN: 0x{pan:04X}")
+                pan_id_read = struct.unpack("<H", data[:2])[0]
+                self.ui["pan"].config(text=f"0x{pan_id_read:04X}")
+                self.ui["log"].config(text=f"Read PAN: 0x{pan_id_read:04X}")
+                log.info(f"✔ Network ID (PAN ID) = {pan_id_read}  (hex: {hex(pan_id_read)})")
         except Exception as e:
             log.debug("PAN read failed for %s: %s", self.address, e)
             self.ui["log"].config(text=f"Read PAN Err: {type(e).__name__}")
     
     async def write_pan(self, pan_id: int):
+        """Write PAN ID to device."""
         if not self.client or not self.client.is_connected:
             self.ui["log"].config(text="Not connected")
             return
         try:
+            # 2-byte little-endian format
             payload = struct.pack("<H", pan_id)
+            
+            print(f"Writing PAN ID = {hex(pan_id)} (bytes={payload.hex()})")
+            
+            # Write to GATT characteristic
             await self.client.write_gatt_char(NETWORK_ID_UUID, payload, response=True)
+            
             self.ui["log"].config(text=f"PAN ID 0x{pan_id:04X} written.")
-            await self._read_pan() # Read back to confirm
+            log.info("Network ID successfully written!")
+            
+            # Read back to confirm
+            await self._read_pan()
+            
         except Exception as e:
+            log.error(f"Write PAN error: {e}")
             self.ui["log"].config(text=f"Write PAN Err: {e}")
 
     # --- Read Operation Mode ---
@@ -370,7 +389,6 @@ class App:
         
         ttk.Button(top, text="Manual Config Refresh", command=self._ask_force_refresh).pack(side="left", padx=20)
 
-
         container = ttk.Frame(self.root, padding=8)
         container.pack(fill="both", expand=True)
 
@@ -518,13 +536,13 @@ class App:
         top.grab_set()
         self.root.wait_window(top)
 
-
     # ----------------- User Input Dialogs -----------------
 
     def _ask_write_pan(self, addr):
+        """Dialog for writing PAN ID to a device (from read_write_pansid.py)."""
         handler = self.handlers.get(addr)
         if not handler or not handler.connected:
-            messagebox.showerror("Error", "Device not connected.")
+            messagebox.showerror("Error", "Device not connected.", parent=self.root)
             return
 
         pan_str = simpledialog.askstring("Write PAN ID", "Enter new PAN ID (e.g., 0x1A2B or 6700):", parent=self.root)
@@ -582,7 +600,6 @@ class App:
     def _confirm_force_disconnect(self, addr):
         if messagebox.askyesno("Confirm Force Disconnect", "Forcefully disconnect device? This is often required after setting mode.", parent=self.root):
             self._schedule(self.handlers[addr].force_disconnect_via_char())
-
 
     # ----------------- Async/Tkinter Integration -----------------
 
