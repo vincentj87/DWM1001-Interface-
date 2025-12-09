@@ -165,7 +165,7 @@ def main():
         while True:
             cmd = input("> ").strip()
             if cmd.lower() == "exit":
-                break
+                break   
             if cmd == "":
                 continue
 
