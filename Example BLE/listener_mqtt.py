@@ -3,16 +3,16 @@ import time
 import threading
 import glob
 import paho.mqtt.client as mqtt
-
+import json 
 # --- Global Configuration ---
 BAUD = 115200
 ser = None
 mqtt_client = None
 MQTT_BROKER = "localhost"
 MQTT_PORT = 1883
-MQTT_TOPIC = "dwm1001/pos"
+MQTT_TOPIC = "dwm1001/pos_"
 MQTT_USER = "orangepi"
-MQTT_PASS = "orangepi"
+MQTT_PASS = "secret123"
 
 ###########################################
 #   SERIAL HELPER FUNCTIONS
@@ -100,7 +100,7 @@ def parse_and_publish(line):
     
     # Publish as a JSON string (or just a string, depending on broker config)
     # Note: The original request used str(payload), which results in a Python dictionary string
-    mqtt_client.publish(MQTT_TOPIC, str(payload))
+    mqtt_client.publish(MQTT_TOPIC+tag_id, json.dumps(payload))
     print(f"[MQTT] Published data for {tag_id}")
 
 ###########################################
